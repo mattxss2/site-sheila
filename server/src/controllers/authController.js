@@ -1,39 +1,52 @@
-const User = require('../models/userModel');
-const { hashPassword, comparePassword } = require('../utils/hash');
-const jwt = require('../utils/jwt');
+import { createContext, useState } from "react";
+// MUDANÇA: Importar a instância 'api' que criamos, não o 'axios' puro
+import api from "../api/api"; 
 
-async function register(req, res, next) {
-  try {
-    const { nome, email, senha } = req.body;
-    if (!nome || !email || !senha) return res.status(400).json({ error: 'Dados incompletos' });
+export const AuthContext = createContext();
 
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(409).json({ error: 'E-mail já cadastrado' });
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
 
-    const senhaHash = await hashPassword(senha);
-    const user = await User.create({ nome, email, senha: senhaHash });
+  // Registrando usuário
+  async function registerUser(nome, email, senha) {
+    try {
+      // MUDANÇA: Usamos 'api.post' e a rota correta '/auth/register'
+      await api.post("/auth/register", {
+        nome,
+        email,
+        senha,
+      });
 
-    res.status(201).json(user);
-  } catch (err) {
-    next(err);
+      return true;
+    } catch (error) {
+      console.error("Erro ao registrar:", error);
+      alert("Erro ao registrar! Verifique se o servidor backend está rodando na porta 4000.");
+      return false;
+    }
   }
-}
 
-async function login(req, res, next) {
-  try {
-    const { email, senha } = req.body;
-    const user = await User.findOne({ email });
+  // Login
+  async function login(email, senha) {
+    try {
+      // MUDANÇA: Usamos 'api.post' e a rota correta '/auth/login'
+      const response = await api.post("/auth/login", {
+        email,
+        senha,
+      });
 
-    if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
+      setUser(response.data.user);
+      return true;
 
-    const ok = await comparePassword(senha, user.senha);
-    if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' });
-
-    const token = jwt.sign({ id: user._id, email: user.email, nome: user.nome });
-    res.json({ token, user: { id: user._id, nome: user.nome, email: user.email } });
-  } catch (err) {
-    next(err);
+    } catch (error) {
+      console.error("Erro ao logar:", error);
+      alert("Email ou senha incorretos!");
+      return false;
+    }
   }
-}
 
-module.exports = { register, login };
+  return (
+    <AuthContext.Provider value={{ user, registerUser, login }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
