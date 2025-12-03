@@ -1,23 +1,15 @@
-// server/src/models/categoryModel.js
-const pool = require('../config/db');
+const mongoose = require('mongoose');
 
-async function createCategory({ nome, tipo }) {
-  const [result] = await pool.execute('INSERT INTO categorias (nome, tipo) VALUES (?, ?)', [nome, tipo]);
-  return { id: result.insertId, nome, tipo };
-}
+const categorySchema = new mongoose.Schema({
+  nome: { type: String, required: true },
+  tipo: { type: String, enum: ['entrada', 'saida'], required: true },
+  criado_em: { type: Date, default: Date.now }
+});
 
-async function listCategories(tipo = null) {
-  if (tipo) {
-    const [rows] = await pool.execute('SELECT * FROM categorias WHERE tipo = ?', [tipo]);
-    return rows;
-  }
-  const [rows] = await pool.execute('SELECT * FROM categorias ORDER BY nome');
-  return rows;
-}
+categorySchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) { delete ret._id; }
+});
 
-async function getCategoryById(id) {
-  const [rows] = await pool.execute('SELECT * FROM categorias WHERE id = ?', [id]);
-  return rows[0];
-}
-
-module.exports = { createCategory, listCategories, getCategoryById };
+module.exports = mongoose.model('Category', categorySchema);

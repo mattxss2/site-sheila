@@ -1,22 +1,17 @@
-// server/src/models/userModel.js
-const pool = require('../config/db');
+const mongoose = require('mongoose');
 
-async function createUser({ nome, email, senhaHash }) {
-  const [result] = await pool.execute(
-    'INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)',
-    [nome, email, senhaHash]
-  );
-  return { id: result.insertId, nome, email };
-}
+const userSchema = new mongoose.Schema({
+  nome: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  senha: { type: String, required: true },
+  criado_em: { type: Date, default: Date.now }
+});
 
-async function findByEmail(email) {
-  const [rows] = await pool.execute('SELECT * FROM usuarios WHERE email = ?', [email]);
-  return rows[0];
-}
+// Converter _id para id no frontend
+userSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) { delete ret._id; }
+});
 
-async function findById(id) {
-  const [rows] = await pool.execute('SELECT id, nome, email, criado_em FROM usuarios WHERE id = ?', [id]);
-  return rows[0];
-}
-
-module.exports = { createUser, findByEmail, findById };
+module.exports = mongoose.model('User', userSchema);
