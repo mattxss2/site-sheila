@@ -27,8 +27,8 @@ async function register(req, res, next) {
 async function login(req, res, next) {
   try {
     const { email, senha } = req.body;
+    
     const user = await User.findOne({ email });
-
     if (!user) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
@@ -39,7 +39,11 @@ async function login(req, res, next) {
     }
 
     const token = jwt.sign({ id: user._id, email: user.email, nome: user.nome });
-    res.json({ token, user: { id: user._id, nome: user.nome, email: user.email } });
+    
+    res.json({ 
+      token, 
+      user: { id: user._id, nome: user.nome, email: user.email } 
+    });
   } catch (err) {
     next(err);
   }
