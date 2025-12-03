@@ -1,4 +1,3 @@
-// server/src/controllers/authController.js
 const User = require('../models/userModel');
 const { hashPassword, comparePassword } = require('../utils/hash');
 const jwt = require('../utils/jwt');
@@ -28,16 +27,19 @@ async function login(req, res, next) {
   try {
     const { email, senha } = req.body;
     
+    // Busca usuário
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
+    // Verifica senha
     const ok = await comparePassword(senha, user.senha);
     if (!ok) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
+    // Gera token
     const token = jwt.sign({ id: user._id, email: user.email, nome: user.nome });
     
     res.json({ 
