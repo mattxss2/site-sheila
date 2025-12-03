@@ -1,52 +1,48 @@
-import { createContext, useState } from "react";
-// MUDANÇA: Importar a instância 'api' que criamos, não o 'axios' puro
-import api from "../api/api"; 
+// server/src/controllers/authController.js
+const User = require('../models/userModel');
+const { hashPassword, comparePassword } = require('../utils/hash');
+const jwt = require('../utils/jwt');
 
-export const AuthContext = createContext();
-
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-
-  // Registrando usuário
-  async function registerUser(nome, email, senha) {
-    try {
-      // MUDANÇA: Usamos 'api.post' e a rota correta '/auth/register'
-      await api.post("/auth/register", {
-        nome,
-        email,
-        senha,
-      });
-
-      return true;
-    } catch (error) {
-      console.error("Erro ao registrar:", error);
-      alert("Erro ao registrar! Verifique se o servidor backend está rodando na porta 4000.");
-      return false;
+async function register(req, res, next) {
+  try {
+    const { nome, email, senha } = req.body;
+    if (!nome || !email || !senha) {
+      return res.status(400).json({ error: 'Dados incompletos' });
     }
-  }
 
-  // Login
-  async function login(email, senha) {
-    try {
-      // MUDANÇA: Usamos 'api.post' e a rota correta '/auth/login'
-      const response = await api.post("/auth/login", {
-        email,
-        senha,
-      });
-
-      setUser(response.data.user);
-      return true;
-
-    } catch (error) {
-      console.error("Erro ao logar:", error);
-      alert("Email ou senha incorretos!");
-      return false;
+    const exists = await User.findOne({ email });
+    if (exists) {
+      return res.status(409).json({ error: 'E-mail já cadastrado' });
     }
-  }
 
-  return (
-    <AuthContext.Provider value={{ user, registerUser, login }}>
-      {children}
-    </AuthContext.Provider>
-  );
+    const senhaHash = await hashPassword(senha);
+    const user = await User.create({ nome, email, senha: senhaHash });
+
+    res.status(201).json(user);
+  } catch (err) {
+    next(err);
+  }
 }
+
+async function login(req, res, next) {
+  try {
+    const { email, senha } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    const ok = await comparePassword(senha, user.senha);
+    if (!ok) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    const token = jwt.sign({ id: user._id, email: user.email, nome: user.nome });
+    res.json({ token, user: { id: user._id, nome: user.nome, email: user.email } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, login };
